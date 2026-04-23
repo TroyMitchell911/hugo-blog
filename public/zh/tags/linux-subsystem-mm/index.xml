@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
-    <title>Troy&#39;s Blog</title>
-    <link>http://localhost:1313/zh/</link>
-    <description>Recent content on Troy&#39;s Blog</description>
+    <title>Linux-Subsystem-Mm on Troy&#39;s Blog</title>
+    <link>http://localhost:1313/zh/tags/linux-subsystem-mm/</link>
+    <description>Recent content in Linux-Subsystem-Mm on Troy&#39;s Blog</description>
     <generator>Hugo</generator>
     <language>zh-CN</language>
     <lastBuildDate>Thu, 23 Apr 2026 18:15:51 +0800</lastBuildDate>
-    <atom:link href="http://localhost:1313/zh/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://localhost:1313/zh/tags/linux-subsystem-mm/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>linux-mm[0]: 物理内存与 struct page</title>
       <link>http://localhost:1313/zh/posts/linux-mm-0-physical-memory-and-struct-page/</link>
@@ -60,14 +60,6 @@
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    ...
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;};
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;逐个字段来看。&lt;/p&gt;</description>
-    </item>
-    <item>
-      <title>你好世界</title>
-      <link>http://localhost:1313/zh/posts/hello-world/</link>
-      <pubDate>Thu, 23 Apr 2026 00:00:00 +0000</pubDate>
-      <guid>http://localhost:1313/zh/posts/hello-world/</guid>
-      <description>&lt;p&gt;这是我的第一篇 Hugo 博客文章。&lt;/p&gt;
-&lt;p&gt;从 Hexo + Butterfly 迁移到 Hugo + PaperMod，追求简洁高效。&lt;/p&gt;</description>
     </item>
   </channel>
 </rss>

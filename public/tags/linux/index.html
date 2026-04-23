@@ -5,11 +5,11 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <meta name="robots" content="noindex, nofollow">
-<title>Blog | Troy&#39;s Blog</title>
+<title>Linux | Troy&#39;s Blog</title>
 <meta name="keywords" content="">
 <meta name="description" content="">
 <meta name="author" content="">
-<link rel="canonical" href="http://localhost:1313/tags/blog/">
+<link rel="canonical" href="http://localhost:1313/tags/linux/">
 <link crossorigin="anonymous" href="/assets/css/stylesheet.47e51c7d8489b002361bac156ce9a0a8776d08c5462c2cee95801efafdd90d35.css" integrity="sha256-R&#43;UcfYSJsAI2G6wVbOmgqHdtCMVGLCzulYAe&#43;v3ZDTU=" rel="preload stylesheet" as="style">
 <link rel="icon" href="http://localhost:1313/favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
@@ -18,8 +18,9 @@
 <link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
 <meta name="theme-color" content="#2e2e33">
 <meta name="msapplication-TileColor" content="#2e2e33">
-<link rel="alternate" type="application/rss+xml" href="http://localhost:1313/tags/blog/index.xml" title="rss">
-<link rel="alternate" hreflang="en" href="http://localhost:1313/tags/blog/">
+<link rel="alternate" type="application/rss+xml" href="http://localhost:1313/tags/linux/index.xml" title="rss">
+<link rel="alternate" hreflang="en" href="http://localhost:1313/tags/linux/">
+<link rel="alternate" hreflang="zh" href="http://localhost:1313/zh/tags/linux/">
 <noscript>
     <style>
         #theme-toggle,
@@ -129,22 +130,22 @@
             </svg>
             <a href="http://localhost:1313/tags/">Tags</a></nav>
   <h1>
-    Blog
+    Linux
   </h1>
 </header>
 
 <article class="post-entry tag-entry"> 
   <header class="entry-header">
-    <h2 class="entry-hint-parent">Hello World
+    <h2 class="entry-hint-parent">linux-mm[0]: Physical Memory and struct page
     </h2>
   </header>
   <div class="entry-content">
-    <p>This is my first Hugo blog post.
-Migrated from Hexo &#43; Butterfly to Hugo &#43; PaperMod, pursuing simplicity and efficiency.
-</p>
+    <p>What Is Physical Memory? When we talk about memory management in the Linux kernel, the first question to answer is deceptively simple: what is physical memory, from the kernel’s perspective?
+Your RAM is a flat array of bytes. The kernel doesn’t treat it as one giant blob — it slices it into fixed-size chunks called pages. On x86_64, the default page size is 4KB, and a machine with 8GB of RAM has roughly 2 million of them.
+...</p>
   </div>
-  <footer class="entry-footer"><span title='2026-04-23 00:00:00 +0000 UTC'>April 23, 2026</span>&nbsp;·&nbsp;<span>1 min</span></footer>
-  <a class="entry-link" aria-label="post link to Hello World" href="http://localhost:1313/posts/hello-world/"></a>
+  <footer class="entry-footer"><span title='2026-04-23 18:15:51 +0800 CST'>April 23, 2026</span>&nbsp;·&nbsp;<span>6 min</span></footer>
+  <a class="entry-link" aria-label="post link to linux-mm[0]: Physical Memory and struct page" href="http://localhost:1313/posts/linux-mm-0-physical-memory-and-struct-page/"></a>
 </article>
     </main>
     

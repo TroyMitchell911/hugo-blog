@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto" data-theme="auto">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="noindex, nofollow">
+<title>linux-mm[0]: Physical Memory and struct page | Troy&#39;s Blog</title>
+<meta name="keywords" content="linux, linux-subsystem-mm">
+<meta name="description" content="What Is Physical Memory?
+When we talk about memory management in the Linux kernel, the first question to answer is deceptively simple: what is physical memory, from the kernel&rsquo;s perspective?
+Your RAM is a flat array of bytes. The kernel doesn&rsquo;t treat it as one giant blob — it slices it into fixed-size chunks called pages. On x86_64, the default page size is 4KB, and a machine with 8GB of RAM has roughly 2 million of them.">
+<meta name="author" content="">
+<link rel="canonical" href="http://localhost:1313/posts/linux-mm-0-physical-memory-and-struct-page/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.47e51c7d8489b002361bac156ce9a0a8776d08c5462c2cee95801efafdd90d35.css" integrity="sha256-R&#43;UcfYSJsAI2G6wVbOmgqHdtCMVGLCzulYAe&#43;v3ZDTU=" rel="preload stylesheet" as="style">
+<link rel="icon" href="http://localhost:1313/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
+<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
+<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="http://localhost:1313/posts/linux-mm-0-physical-memory-and-struct-page/">
+<link rel="alternate" hreflang="zh" href="http://localhost:1313/zh/posts/linux-mm-0-physical-memory-and-struct-page/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --code-block-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+                color-scheme: dark;
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .toc {
+                background: var(--entry);
+            }
+        }
+
+    </style>
+</noscript>
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.querySelector("html").dataset.theme = 'dark';
+    } else if (localStorage.getItem("pref-theme") === "light") {
+       document.querySelector("html").dataset.theme = 'light';
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.querySelector("html").dataset.theme = 'dark';
+    } else {
+        document.querySelector("html").dataset.theme = 'light';
+    }
+
+</script>
+</head>
+<body id="top">
+    <header class="header">
+    <nav class="header-nav">
+        <div class="logo">
+            <a href="http://localhost:1313/" accesskey="h" title="Troy&#39;s Blog (Alt + H)">Troy&#39;s Blog</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" class="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg class="moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg class="sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button><span>|</span>
+                    <ul class="lang-menu">
+                        <li>
+                            <a href="http://localhost:1313/zh/" title="中文"
+                                aria-label="中文">Zh</a>
+                        </li>
+                    </ul>
+            </div>
+        </div>
+        <ul id="menu" class="menu">
+            <li>
+                <a href="http://localhost:1313/archives/" title="Archives">
+                    <span>Archives</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/search/" title="Search (Alt &#43; /)" accesskey=/>
+                    <span>Search</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <nav class="breadcrumbs" role="navigation" aria-label="Breadcrumb">
+    <a href='http://localhost:1313/'>Home</a>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+            <a href="http://localhost:1313/posts/">Posts</a></nav>
+    <h1 class="post-title entry-hint-parent">
+      linux-mm[0]: Physical Memory and struct page
+    </h1>
+    <div class="post-meta"><span title='2026-04-23 18:15:51 +0800 CST'>April 23, 2026</span>&nbsp;·&nbsp;<span>6 min</span>&nbsp;|&nbsp;<span>Translations:</span>
+<ul class="i18n_list">
+    <li>
+        <a href="http://localhost:1313/zh/posts/linux-mm-0-physical-memory-and-struct-page/">Zh</a>
+    </li>
+</ul>
+
+</div>
+  </header> <details class="toc" >
+    <summary accesskey="c" title="(Alt + C)">
+        <span class="title">Table of Contents</span>
+    </summary>
+
+    <div class="inner"><ul>
+            <li>
+                <a href="#what-is-physical-memory" aria-label="What Is Physical Memory?">What Is Physical Memory?</a><ul>
+                    
+            <li>
+                <a href="#why-4kb-who-decided-that" aria-label="Why 4KB? Who Decided That?">Why 4KB? Who Decided That?</a></li></ul>
+            </li>
+            <li>
+                <a href="#struct-page--the-kernels-metadata-for-every-page" aria-label="struct page — The Kernel&rsquo;s Metadata for Every Page">struct page — The Kernel&rsquo;s Metadata for Every Page</a><ul>
+                    
+            <li>
+                <a href="#flags" aria-label="flags">flags</a></li>
+            <li>
+                <a href="#_mapcount" aria-label="_mapcount">_mapcount</a></li>
+            <li>
+                <a href="#lru" aria-label="lru">lru</a></li></ul>
+            </li>
+            <li>
+                <a href="#the-modern-abstraction-folio" aria-label="The Modern Abstraction: folio">The Modern Abstraction: folio</a></li>
+            <li>
+                <a href="#reference-counting-_refcount" aria-label="Reference Counting: _refcount">Reference Counting: _refcount</a></li>
+            <li>
+                <a href="#dirty-pages-and-write-back" aria-label="Dirty Pages and Write-Back">Dirty Pages and Write-Back</a></li>
+            <li>
+                <a href="#a-note-on-dma-coherency" aria-label="A Note on DMA Coherency">A Note on DMA Coherency</a></li>
+            <li>
+                <a href="#whats-next" aria-label="What&rsquo;s Next">What&rsquo;s Next</a>
+            </li>
+        </ul>
+    </div>
+</details>
+
+  <div class="post-content md-content"><h2 id="what-is-physical-memory">What Is Physical Memory?<a hidden class="anchor" aria-hidden="true" href="#what-is-physical-memory">#</a></h2>
+<p>When we talk about memory management in the Linux kernel, the first question to answer is deceptively simple: what <em>is</em> physical memory, from the kernel&rsquo;s perspective?</p>
+<p>Your RAM is a flat array of bytes. The kernel doesn&rsquo;t treat it as one giant blob — it slices it into fixed-size chunks called <strong>pages</strong>. On x86_64, the default page size is <strong>4KB</strong>, and a machine with 8GB of RAM has roughly 2 million of them.</p>
+<h3 id="why-4kb-who-decided-that">Why 4KB? Who Decided That?<a hidden class="anchor" aria-hidden="true" href="#why-4kb-who-decided-that">#</a></h3>
+<p>This is a hardware decision, not a software one. Every modern CPU has a dedicated hardware unit called the <strong>MMU (Memory Management Unit)</strong> that handles virtual-to-physical address translation. The MMU is designed at the silicon level to work with specific page sizes — the kernel has no choice but to use what the MMU supports.</p>
+<p>On x86_64, the MMU supports three page sizes:</p>
+<table>
+  <thead>
+      <tr>
+          <th>Size</th>
+          <th>Name</th>
+          <th>Typical Use</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>4KB</td>
+          <td>Normal page</td>
+          <td>General purpose</td>
+      </tr>
+      <tr>
+          <td>2MB</td>
+          <td>Huge page</td>
+          <td>Large mappings, databases</td>
+      </tr>
+      <tr>
+          <td>1GB</td>
+          <td>Gigantic page</td>
+          <td>Specialized workloads</td>
+      </tr>
+  </tbody>
+</table>
+<p>4KB became the standard because it strikes a balance: small enough to avoid wasting memory on sparse allocations, large enough to keep the page table from becoming enormous. The kernel can use 2MB or 1GB huge pages via <strong>THP (Transparent Huge Pages)</strong> or explicit <code>mmap</code> flags, but 4KB is the baseline everything else is built on.</p>
+<h2 id="struct-page--the-kernels-metadata-for-every-page">struct page — The Kernel&rsquo;s Metadata for Every Page<a hidden class="anchor" aria-hidden="true" href="#struct-page--the-kernels-metadata-for-every-page">#</a></h2>
+<p>The kernel needs to track the state of every single page: Is it in use? By whom? Can it be reclaimed? Is it dirty?</p>
+<p>It does this with <code>struct page</code>, defined in <code>include/linux/mm_types.h</code>. Think of it as a filing card attached to every parking spot in a massive parking garage — the garage is your RAM, each spot is a page, and the card records who parked there and what state it&rsquo;s in.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> page {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">memdesc_flags_t</span> flags;      <span style="color:#75715e">/* status flags — dirty, locked, writeback, etc. */</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">union</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">struct</span> list_head lru;   <span style="color:#75715e">/* LRU list linkage for reclaim */</span>
+</span></span><span style="display:flex;"><span>        ...
+</span></span><span style="display:flex;"><span>    };
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">atomic_t</span> _mapcount;         <span style="color:#75715e">/* how many page table entries map this page */</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">atomic_t</span> _refcount;         <span style="color:#75715e">/* reference count — page is freed when this hits 0 */</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>};
+</span></span></code></pre></div><p>Let&rsquo;s walk through the important fields.</p>
+<h3 id="flags">flags<a hidden class="anchor" aria-hidden="true" href="#flags">#</a></h3>
+<p>This is a bitmask of status flags. Some notable ones:</p>
+<ul>
+<li><code>PG_dirty</code> — the page has been written to but not yet flushed to disk</li>
+<li><code>PG_locked</code> — someone holds the page lock (e.g., during I/O)</li>
+<li><code>PG_writeback</code> — the page is currently being written back to storage</li>
+<li><code>PG_uptodate</code> — the page&rsquo;s data is valid and up to date</li>
+<li><code>PG_lru</code> — the page is on an LRU list</li>
+</ul>
+<p>These flags are manipulated atomically because multiple CPUs can touch the same page concurrently.</p>
+<h3 id="_mapcount">_mapcount<a hidden class="anchor" aria-hidden="true" href="#_mapcount">#</a></h3>
+<p>Tracks how many page table entries (PTEs) across all processes point to this page. When a page is shared between processes (e.g., a shared library), <code>_mapcount</code> reflects that. It starts at -1 (meaning &ldquo;not mapped&rdquo;), and each mapping increments it.</p>
+<h3 id="lru">lru<a hidden class="anchor" aria-hidden="true" href="#lru">#</a></h3>
+<p>A <code>list_head</code> that links this page into one of the kernel&rsquo;s LRU (Least Recently Used) lists. The memory reclaim subsystem (<code>kswapd</code>) uses these lists to find pages to evict when memory is tight. This field is part of a union — it gets reused for other purposes depending on the page&rsquo;s current role.</p>
+<h2 id="the-modern-abstraction-folio">The Modern Abstraction: folio<a hidden class="anchor" aria-hidden="true" href="#the-modern-abstraction-folio">#</a></h2>
+<p>In recent kernel versions (5.16+), the kernel introduced <code>struct folio</code> as a higher-level abstraction over <code>struct page</code>. A folio represents a contiguous, power-of-two-aligned group of pages as a single unit. The motivation is to reduce overhead when dealing with large pages — instead of iterating over 512 individual <code>struct page</code> entries for a 2MB huge page, you work with one folio.</p>
+<p>Most new kernel code operates on folios rather than raw pages. The <code>struct page</code> is still there underneath, but the folio API (<code>folio_get()</code>, <code>folio_put()</code>, <code>folio_ref_count()</code>) is the preferred interface going forward.</p>
+<h2 id="reference-counting-_refcount">Reference Counting: _refcount<a hidden class="anchor" aria-hidden="true" href="#reference-counting-_refcount">#</a></h2>
+<p><code>_refcount</code> is the page&rsquo;s reference count — an <code>atomic_t</code> that tracks how many kernel subsystems currently hold a reference to this page. The rule is simple: <strong>when <code>_refcount</code> drops to zero, the page can be freed</strong>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">// include/linux/mm.h
+</span></span></span><span style="display:flex;"><span><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">folio_get</span>(<span style="color:#66d9ef">struct</span> folio <span style="color:#f92672">*</span>folio) {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">atomic_inc</span>(<span style="color:#f92672">&amp;</span>folio<span style="color:#f92672">-&gt;</span>_refcount);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">__folio_put</span>(<span style="color:#66d9ef">struct</span> folio <span style="color:#f92672">*</span>folio) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">folio_is_zone_device</span>(folio)) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">free_zone_device_folio</span>(folio);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">/* ... eventually returns the page to the buddy allocator */</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Who holds references?</p>
+<ul>
+<li>A <strong>process&rsquo;s page table</strong> mapping the page → +1</li>
+<li>The <strong>page cache</strong> holding a file-backed page → +1</li>
+<li>A <strong>driver</strong> doing DMA with the page → +1</li>
+<li>The <strong>kernel</strong> temporarily pinning a page for I/O → +1</li>
+</ul>
+<p>When all of these release their references, <code>_refcount</code> hits zero, <code>__folio_put()</code> is called, and the page is returned to the <strong>buddy allocator</strong> (more on that in a later post).</p>
+<p>The distinction between <code>_refcount</code> and <code>_mapcount</code> trips people up at first. <code>_mapcount</code> counts page table mappings specifically. <code>_refcount</code> counts <em>all</em> references, including non-mapping ones like page cache pins. A page can have <code>_refcount &gt; 0</code> with <code>_mapcount == -1</code> — it&rsquo;s held by the kernel but not mapped into any process&rsquo;s address space.</p>
+<h2 id="dirty-pages-and-write-back">Dirty Pages and Write-Back<a hidden class="anchor" aria-hidden="true" href="#dirty-pages-and-write-back">#</a></h2>
+<p>A page becomes &ldquo;dirty&rdquo; when a process writes to it and the change hasn&rsquo;t been flushed to the backing storage (disk or network filesystem) yet. The kernel doesn&rsquo;t write every dirty page immediately — that would be catastrophically slow. Instead, it uses three mechanisms to ensure dirty pages eventually get written back:</p>
+<p><strong>1. Periodic writeback (every 5 seconds)</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">// mm/page-writeback.c
+</span></span></span><span style="display:flex;"><span><span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> dirty_writeback_interval <span style="color:#f92672">=</span> <span style="color:#ae81ff">5</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">100</span>; <span style="color:#75715e">/* centiseconds */</span>
+</span></span></code></pre></div><p>A kernel thread wakes up every 5 seconds and flushes pages that have been dirty for too long.</p>
+<p><strong>2. Dirty ratio threshold</strong>
+When the ratio of dirty pages to total memory exceeds a threshold (<code>/proc/sys/vm/dirty_ratio</code>), the kernel starts throttling writes and forcing writeback synchronously.</p>
+<p><strong>3. Memory pressure</strong>
+When the system is low on memory and needs to reclaim pages, dirty pages must be written back before they can be freed.</p>
+<h2 id="a-note-on-dma-coherency">A Note on DMA Coherency<a hidden class="anchor" aria-hidden="true" href="#a-note-on-dma-coherency">#</a></h2>
+<p>One question that naturally comes up when studying memory: where does <code>dma_alloc_coherent()</code> fit? Is DMA coherency part of the memory subsystem?</p>
+<p>The short answer: it lives at the intersection. <code>dma_alloc_coherent()</code> is implemented in <code>kernel/dma/coherent.c</code> and ultimately calls into <code>mm/</code> to allocate physically contiguous pages (using <code>alloc_pages(GFP_DMA)</code>). But the <em>coherency</em> part — ensuring CPU caches and device-visible memory stay in sync — is handled per-architecture in <code>arch/x86/mm/</code>, <code>arch/arm64/mm/</code>, etc.</p>
+<p>So DMA coherency is not purely a memory subsystem concern, but it&rsquo;s deeply intertwined with it. The memory subsystem provides the pages; the architecture layer handles the cache semantics.</p>
+<h2 id="whats-next">What&rsquo;s Next<a hidden class="anchor" aria-hidden="true" href="#whats-next">#</a></h2>
+<p>This post covered the foundation: how the kernel models physical memory as pages, what metadata it tracks per page, and how reference counting keeps everything from being freed prematurely.</p>
+<p>The next post will cover <strong>memblock</strong> — the primitive allocator the kernel uses during early boot, before the full buddy allocator is initialized. Understanding memblock is essential context for understanding how the buddy system gets set up in the first place.</p>
+<p>Series roadmap:</p>
+<ul>
+<li><strong>[0]</strong> Physical memory and <code>struct page</code> ← you are here</li>
+<li><strong>[1]</strong> memblock — early boot memory</li>
+<li><strong>[2]</strong> Zones and NUMA nodes</li>
+<li><strong>[3]</strong> The buddy allocator</li>
+<li><strong>[4]</strong> SLUB and kmalloc</li>
+<li><strong>[5]</strong> vmalloc</li>
+<li><strong>[6]</strong> Virtual memory areas (VMAs)</li>
+<li><strong>[7]</strong> Page tables and address translation</li>
+<li><strong>[8]</strong> Page faults and Copy-on-Write</li>
+<li><strong>[9]</strong> Memory reclaim, kswapd, and LRU</li>
+</ul>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="http://localhost:1313/tags/linux/">Linux</a></li>
+      <li><a href="http://localhost:1313/tags/linux-subsystem-mm/">Linux-Subsystem-Mm</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="next" href="http://localhost:1313/posts/hello-world/">
+    <span class="title">Next »</span>
+    <span>Hello World</span>
+  </a>
+</nav>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2026 <a href="http://localhost:1313/">Troy&#39;s Blog</a></span> · 
+
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" id="top-link" class="top-link hidden" aria-label="go to top" title="Go to Top (Alt + G)" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevrons-up">
+        <polyline points="17 11 12 6 7 11"></polyline>
+        <polyline points="17 18 12 13 7 18"></polyline>
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu');
+    if (menu) {
+        
+        const scrollPosition = localStorage.getItem("menu-scroll-position");
+        if (scrollPosition) {
+            menu.scrollLeft = parseInt(scrollPosition, 10);
+        }
+        
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var toplink = document.getElementById("top-link");
+    window.onscroll = function () {
+        const scrollThreshold = window.innerHeight;
+        if (document.body.scrollTop > scrollThreshold || document.documentElement.scrollTop > scrollThreshold) {
+            toplink.classList.remove("hidden");
+        } else {
+            toplink.classList.add("hidden");
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        const html = document.querySelector("html");
+        if (html.dataset.theme === "dark") {
+            html.dataset.theme = 'light';
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            html.dataset.theme = 'dark';
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

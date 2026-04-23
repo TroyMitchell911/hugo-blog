@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh" dir="auto" data-theme="auto">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="noindex, nofollow">
+<title>linux-mm[0]: 物理内存与 struct page | Troy&#39;s Blog</title>
+<meta name="keywords" content="linux, linux-subsystem-mm">
+<meta name="description" content="物理内存是什么
+学习 Linux 内核内存管理，第一个问题看起来很简单：从内核的角度来看，物理内存到底是什么？
+你的内存条是一大片连续的字节。内核不会把它当成一整块来用——它把内存切成固定大小的块，每一块叫做一个页（page）。在 x86_64 上，默认页大小是 4KB，一台 8GB 内存的机器大约有 200 万个页。
+4KB 是谁定的？为什么是 4KB？
+这是硬件决定的，不是内核决定的。每颗现代 CPU 里都有一个专门负责虚拟地址到物理地址翻译的硬件单元，叫做 MMU（内存管理单元）。MMU 在芯片设计阶段就固定了它支持的页大小，内核只能用 MMU 支持的那几种，没有别的选择。
+x86_64 的 MMU 支持三种页大小：
+
+  
+      
+          大小
+          名称
+          典型用途
+      
+  
+  
+      
+          4KB
+          普通页
+          通用
+      
+      
+          2MB
+          大页（Huge Page）
+          数据库、大内存映射
+      
+      
+          1GB
+          巨页（Gigantic Page）
+          特殊高性能场景
+      
+  
+
+4KB 成为默认值是因为它在两个极端之间取得了平衡：足够小，不会在稀疏分配时浪费太多内存；足够大，不会让页表变得过于庞大。内核可以通过 THP（透明大页） 或显式的 mmap 标志使用 2MB 或 1GB 的大页，但 4KB 是一切的基础。
+struct page — 每个页的&quot;档案卡&quot;
+内核需要追踪每一个页的状态：它在被使用吗？被谁用？能不能被回收？有没有被写脏？
+这些信息存在 struct page 里，定义在 include/linux/mm_types.h。可以把它想象成停车场里每个停车位上贴的一张档案卡——停车场是你的内存，每个停车位是一个页，档案卡记录了谁停在这里、现在是什么状态。
+struct page {
+    memdesc_flags_t flags;      /* 状态标志位 — 脏页、锁定、回写中等 */
+    union {
+        struct list_head lru;   /* LRU 链表指针，用于内存回收 */
+        ...
+    };
+    atomic_t _mapcount;         /* 有多少个页表项映射了这个页 */
+    atomic_t _refcount;         /* 引用计数 — 降到 0 时页才能被释放 */
+    ...
+};
+逐个字段来看。">
+<meta name="author" content="">
+<link rel="canonical" href="http://localhost:1313/zh/posts/linux-mm-0-physical-memory-and-struct-page/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.47e51c7d8489b002361bac156ce9a0a8776d08c5462c2cee95801efafdd90d35.css" integrity="sha256-R&#43;UcfYSJsAI2G6wVbOmgqHdtCMVGLCzulYAe&#43;v3ZDTU=" rel="preload stylesheet" as="style">
+<link rel="icon" href="http://localhost:1313/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
+<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
+<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="http://localhost:1313/posts/linux-mm-0-physical-memory-and-struct-page/">
+<link rel="alternate" hreflang="zh" href="http://localhost:1313/zh/posts/linux-mm-0-physical-memory-and-struct-page/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+    <style>
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --theme: rgb(29, 30, 32);
+                --entry: rgb(46, 46, 51);
+                --primary: rgb(218, 218, 219);
+                --secondary: rgb(155, 156, 157);
+                --tertiary: rgb(65, 66, 68);
+                --content: rgb(196, 196, 197);
+                --code-block-bg: rgb(46, 46, 51);
+                --code-bg: rgb(55, 56, 62);
+                --border: rgb(51, 51, 51);
+                color-scheme: dark;
+            }
+
+            .list {
+                background: var(--theme);
+            }
+
+            .toc {
+                background: var(--entry);
+            }
+        }
+
+    </style>
+</noscript>
+<script>
+    if (localStorage.getItem("pref-theme") === "dark") {
+        document.querySelector("html").dataset.theme = 'dark';
+    } else if (localStorage.getItem("pref-theme") === "light") {
+       document.querySelector("html").dataset.theme = 'light';
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.querySelector("html").dataset.theme = 'dark';
+    } else {
+        document.querySelector("html").dataset.theme = 'light';
+    }
+
+</script>
+</head>
+<body id="top">
+    <header class="header">
+    <nav class="header-nav">
+        <div class="logo">
+            <a href="http://localhost:1313/zh/" accesskey="h" title="Troy&#39;s Blog (Alt + H)">Troy&#39;s Blog</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" class="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg class="moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg class="sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button><span>|</span>
+                    <ul class="lang-menu">
+                        <li>
+                            <a href="http://localhost:1313/" title="English"
+                                aria-label="English">En</a>
+                        </li>
+                    </ul>
+            </div>
+        </div>
+        <ul id="menu" class="menu">
+            <li>
+                <a href="http://localhost:1313/zh/archives/" title="归档">
+                    <span>归档</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/zh/tags/" title="标签">
+                    <span>标签</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/zh/search/" title="搜索 (Alt &#43; /)" accesskey=/>
+                    <span>搜索</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <nav class="breadcrumbs" role="navigation" aria-label="Breadcrumb">
+    <a href='http://localhost:1313/zh/'>主页</a>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+            <a href="http://localhost:1313/zh/posts/">Posts</a></nav>
+    <h1 class="post-title entry-hint-parent">
+      linux-mm[0]: 物理内存与 struct page
+    </h1>
+    <div class="post-meta"><span title='2026-04-23 18:15:51 +0800 CST'>2026年4月23日</span>&nbsp;·&nbsp;<span>2 分钟</span>&nbsp;|&nbsp;<span>语言:</span>
+<ul class="i18n_list">
+    <li>
+        <a href="http://localhost:1313/posts/linux-mm-0-physical-memory-and-struct-page/">En</a>
+    </li>
+</ul>
+
+</div>
+  </header> <details class="toc" >
+    <summary accesskey="c" title="(Alt + C)">
+        <span class="title">目录</span>
+    </summary>
+
+    <div class="inner"><ul>
+            <li>
+                <a href="#%e7%89%a9%e7%90%86%e5%86%85%e5%ad%98%e6%98%af%e4%bb%80%e4%b9%88" aria-label="物理内存是什么">物理内存是什么</a><ul>
+                    
+            <li>
+                <a href="#4kb-%e6%98%af%e8%b0%81%e5%ae%9a%e7%9a%84%e4%b8%ba%e4%bb%80%e4%b9%88%e6%98%af-4kb" aria-label="4KB 是谁定的？为什么是 4KB？">4KB 是谁定的？为什么是 4KB？</a></li></ul>
+            </li>
+            <li>
+                <a href="#struct-page--%e6%af%8f%e4%b8%aa%e9%a1%b5%e7%9a%84%e6%a1%a3%e6%a1%88%e5%8d%a1" aria-label="struct page — 每个页的&quot;档案卡&quot;">struct page — 每个页的&quot;档案卡&quot;</a><ul>
+                    
+            <li>
+                <a href="#flags" aria-label="flags">flags</a></li>
+            <li>
+                <a href="#_mapcount" aria-label="_mapcount">_mapcount</a></li>
+            <li>
+                <a href="#lru" aria-label="lru">lru</a></li></ul>
+            </li>
+            <li>
+                <a href="#%e7%8e%b0%e4%bb%a3%e6%8a%bd%e8%b1%a1folio" aria-label="现代抽象：folio">现代抽象：folio</a></li>
+            <li>
+                <a href="#%e5%bc%95%e7%94%a8%e8%ae%a1%e6%95%b0_refcount" aria-label="引用计数：_refcount">引用计数：_refcount</a></li>
+            <li>
+                <a href="#%e8%84%8f%e9%a1%b5%e4%b8%8e%e5%86%99%e5%9b%9e" aria-label="脏页与写回">脏页与写回</a></li>
+            <li>
+                <a href="#dma-%e4%b8%80%e8%87%b4%e6%80%a7%e5%86%85%e5%ad%98%e7%ae%a1%e7%90%86%e7%9a%84%e8%be%b9%e7%95%8c" aria-label="DMA 一致性：内存管理的边界">DMA 一致性：内存管理的边界</a></li>
+            <li>
+                <a href="#%e4%b8%8b%e4%b8%80%e7%af%87" aria-label="下一篇">下一篇</a>
+            </li>
+        </ul>
+    </div>
+</details>
+
+  <div class="post-content md-content"><h2 id="物理内存是什么">物理内存是什么<a hidden class="anchor" aria-hidden="true" href="#物理内存是什么">#</a></h2>
+<p>学习 Linux 内核内存管理，第一个问题看起来很简单：从内核的角度来看，物理内存到底是什么？</p>
+<p>你的内存条是一大片连续的字节。内核不会把它当成一整块来用——它把内存切成固定大小的块，每一块叫做一个<strong>页（page）</strong>。在 x86_64 上，默认页大小是 <strong>4KB</strong>，一台 8GB 内存的机器大约有 200 万个页。</p>
+<h3 id="4kb-是谁定的为什么是-4kb">4KB 是谁定的？为什么是 4KB？<a hidden class="anchor" aria-hidden="true" href="#4kb-是谁定的为什么是-4kb">#</a></h3>
+<p>这是<strong>硬件决定的，不是内核决定的</strong>。每颗现代 CPU 里都有一个专门负责虚拟地址到物理地址翻译的硬件单元，叫做 <strong>MMU（内存管理单元）</strong>。MMU 在芯片设计阶段就固定了它支持的页大小，内核只能用 MMU 支持的那几种，没有别的选择。</p>
+<p>x86_64 的 MMU 支持三种页大小：</p>
+<table>
+  <thead>
+      <tr>
+          <th>大小</th>
+          <th>名称</th>
+          <th>典型用途</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>4KB</td>
+          <td>普通页</td>
+          <td>通用</td>
+      </tr>
+      <tr>
+          <td>2MB</td>
+          <td>大页（Huge Page）</td>
+          <td>数据库、大内存映射</td>
+      </tr>
+      <tr>
+          <td>1GB</td>
+          <td>巨页（Gigantic Page）</td>
+          <td>特殊高性能场景</td>
+      </tr>
+  </tbody>
+</table>
+<p>4KB 成为默认值是因为它在两个极端之间取得了平衡：足够小，不会在稀疏分配时浪费太多内存；足够大，不会让页表变得过于庞大。内核可以通过 <strong>THP（透明大页）</strong> 或显式的 <code>mmap</code> 标志使用 2MB 或 1GB 的大页，但 4KB 是一切的基础。</p>
+<h2 id="struct-page--每个页的档案卡">struct page — 每个页的&quot;档案卡&quot;<a hidden class="anchor" aria-hidden="true" href="#struct-page--每个页的档案卡">#</a></h2>
+<p>内核需要追踪每一个页的状态：它在被使用吗？被谁用？能不能被回收？有没有被写脏？</p>
+<p>这些信息存在 <code>struct page</code> 里，定义在 <code>include/linux/mm_types.h</code>。可以把它想象成停车场里每个停车位上贴的一张档案卡——停车场是你的内存，每个停车位是一个页，档案卡记录了谁停在这里、现在是什么状态。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> page {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">memdesc_flags_t</span> flags;      <span style="color:#75715e">/* 状态标志位 — 脏页、锁定、回写中等 */</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">union</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">struct</span> list_head lru;   <span style="color:#75715e">/* LRU 链表指针，用于内存回收 */</span>
+</span></span><span style="display:flex;"><span>        ...
+</span></span><span style="display:flex;"><span>    };
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">atomic_t</span> _mapcount;         <span style="color:#75715e">/* 有多少个页表项映射了这个页 */</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">atomic_t</span> _refcount;         <span style="color:#75715e">/* 引用计数 — 降到 0 时页才能被释放 */</span>
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>};
+</span></span></code></pre></div><p>逐个字段来看。</p>
+<h3 id="flags">flags<a hidden class="anchor" aria-hidden="true" href="#flags">#</a></h3>
+<p>一个位掩码，记录页的各种状态。常见的标志位：</p>
+<ul>
+<li><code>PG_dirty</code> — 页已被写入但尚未刷回磁盘</li>
+<li><code>PG_locked</code> — 有人持有页锁（比如正在做 I/O）</li>
+<li><code>PG_writeback</code> — 页正在被写回存储</li>
+<li><code>PG_uptodate</code> — 页的数据是有效且最新的</li>
+<li><code>PG_lru</code> — 页在某个 LRU 链表上</li>
+</ul>
+<p>这些标志位的操作都是原子的，因为多个 CPU 可能同时访问同一个页。</p>
+<h3 id="_mapcount">_mapcount<a hidden class="anchor" aria-hidden="true" href="#_mapcount">#</a></h3>
+<p>记录有多少个进程的页表项（PTE）指向这个页。当一个页被多个进程共享时（比如共享库），<code>_mapcount</code> 就会大于 0。它的初始值是 -1，表示&quot;没有任何映射&quot;，每增加一个映射就加一。</p>
+<h3 id="lru">lru<a hidden class="anchor" aria-hidden="true" href="#lru">#</a></h3>
+<p>一个 <code>list_head</code>，把这个页链入内核的某个 LRU（最近最少使用）链表。内存回收子系统（<code>kswapd</code>）通过这些链表找到可以驱逐的页。这个字段是一个 union 的一部分——根据页当前的用途，它会被复用来存储其他信息。</p>
+<h2 id="现代抽象folio">现代抽象：folio<a hidden class="anchor" aria-hidden="true" href="#现代抽象folio">#</a></h2>
+<p>在较新的内核版本（5.16+）中，内核引入了 <code>struct folio</code> 作为 <code>struct page</code> 的上层抽象。一个 folio 代表一组物理连续、大小为 2 的幂次方的页，作为一个整体来操作。引入它的动机是减少处理大页时的开销——与其对一个 2MB 大页的 512 个 <code>struct page</code> 逐一操作，不如用一个 folio 来统一处理。</p>
+<p>大多数新内核代码都操作 folio 而不是原始的 <code>struct page</code>。底层的 <code>struct page</code> 还在，但 folio API（<code>folio_get()</code>、<code>folio_put()</code>、<code>folio_ref_count()</code>）是推荐的接口。</p>
+<h2 id="引用计数_refcount">引用计数：_refcount<a hidden class="anchor" aria-hidden="true" href="#引用计数_refcount">#</a></h2>
+<p><code>_refcount</code> 是页的引用计数——一个 <code>atomic_t</code>，记录当前有多少个内核子系统持有对这个页的引用。规则很简单：<strong><code>_refcount</code> 降到零时，页才能被释放</strong>。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">// include/linux/mm.h
+</span></span></span><span style="display:flex;"><span><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">folio_get</span>(<span style="color:#66d9ef">struct</span> folio <span style="color:#f92672">*</span>folio) {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">atomic_inc</span>(<span style="color:#f92672">&amp;</span>folio<span style="color:#f92672">-&gt;</span>_refcount);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">__folio_put</span>(<span style="color:#66d9ef">struct</span> folio <span style="color:#f92672">*</span>folio) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">folio_is_zone_device</span>(folio)) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">free_zone_device_folio</span>(folio);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">/* ... 最终把页还给伙伴分配器 */</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>谁会持有引用？</p>
+<ul>
+<li><strong>进程的页表</strong>映射了这个页 → +1</li>
+<li><strong>页缓存（page cache）</strong> 持有一个文件页 → +1</li>
+<li><strong>驱动程序</strong>正在用这个页做 DMA → +1</li>
+<li><strong>内核</strong>临时 pin 住一个页做 I/O → +1</li>
+</ul>
+<p>当所有这些引用都释放后，<code>_refcount</code> 归零，<code>__folio_put()</code> 被调用，页被归还给<strong>伙伴分配器</strong>（后续文章会详细讲）。</p>
+<p><code>_refcount</code> 和 <code>_mapcount</code> 容易混淆。<code>_mapcount</code> 只统计页表映射。<code>_refcount</code> 统计<strong>所有</strong>引用，包括非映射类型的引用（比如页缓存的 pin）。一个页可以 <code>_refcount &gt; 0</code> 同时 <code>_mapcount == -1</code>——它被内核持有，但没有映射到任何进程的地址空间。</p>
+<h2 id="脏页与写回">脏页与写回<a hidden class="anchor" aria-hidden="true" href="#脏页与写回">#</a></h2>
+<p>当进程写入一个页，而这个修改还没有刷回后端存储（磁盘或网络文件系统）时，这个页就变成了&quot;脏页&quot;。内核不会立即写回每一个脏页——那样会慢得无法接受。它用三道机制来保证脏页最终会被写回：</p>
+<p><strong>第一道：定时器，每 5 秒触发一次</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">// mm/page-writeback.c
+</span></span></span><span style="display:flex;"><span><span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> dirty_writeback_interval <span style="color:#f92672">=</span> <span style="color:#ae81ff">5</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">100</span>; <span style="color:#75715e">/* 单位：百分之一秒 */</span>
+</span></span></code></pre></div><p>内核线程每 5 秒唤醒一次，把脏了太久的页刷回去（默认超过 30 秒的脏页会被强制写回）。</p>
+<p><strong>第二道：脏页比例阈值</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">int</span> dirty_ratio <span style="color:#f92672">=</span> <span style="color:#ae81ff">20</span>;           <span style="color:#75715e">/* 进程触发同步写回的阈值 */</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">int</span> dirty_background_ratio <span style="color:#f92672">=</span> <span style="color:#ae81ff">10</span>; <span style="color:#75715e">/* 后台写回线程启动的阈值 */</span>
+</span></span></code></pre></div><p>当脏页占总内存的比例超过 <code>dirty_background_ratio</code>（默认 10%），后台写回线程就会启动。超过 <code>dirty_ratio</code>（默认 20%），写入进程本身会被阻塞，强制同步写回。</p>
+<p><strong>第三道：内存回收触发写回</strong>
+当系统内存紧张，<code>kswapd</code> 开始回收页时，遇到脏页会先触发写回，写完再回收。</p>
+<p>这三道防线保证了即使没有显式的 <code>fsync()</code>，脏页也不会永远留在内存里。</p>
+<h2 id="dma-一致性内存管理的边界">DMA 一致性：内存管理的边界<a hidden class="anchor" aria-hidden="true" href="#dma-一致性内存管理的边界">#</a></h2>
+<p>学到这里自然会想到 DMA。DMA 操作的内存必须是物理连续的，所以驱动会调用 mm/ 里的接口来分配页（比如 <code>alloc_pages(GFP_DMA)</code>）。但 <code>dma_alloc_coherent()</code> 这类 API 管的是另一件事——<strong>CPU cache 和内存之间的一致性</strong>。</p>
+<p>这一层是纯软件概念，跟具体设备无关。它的实现在：</p>
+<ul>
+<li><code>kernel/dma/coherent.c</code> — <code>dma_alloc_coherent()</code> 的核心逻辑</li>
+<li><code>arch/x86/mm/</code>、<code>arch/arm64/mm/</code> — 各架构的 cache flush 实现</li>
+</ul>
+<p>所以 DMA coherency 不属于 mm/ 子系统，而是 <code>kernel/dma/</code> + 各架构 mm/ 的交叉地带。mm/ 负责分配物理内存，DMA 层负责保证访问这块内存时 cache 是一致的。</p>
+<h2 id="下一篇">下一篇<a hidden class="anchor" aria-hidden="true" href="#下一篇">#</a></h2>
+<p>本文建立了最基础的心智模型：物理内存如何被内核建模为页、每个页追踪哪些元数据、以及引用计数如何防止页被过早释放。</p>
+<p>下一篇将介绍 <strong>memblock</strong>——内核在早期启动阶段使用的原始分配器，此时完整的伙伴分配器还没有初始化。理解 memblock 是理解伙伴系统如何建立起来的必要前提。</p>
+<p>系列路线图：</p>
+<ul>
+<li><strong>[0]</strong> 物理内存与 <code>struct page</code> ← 当前</li>
+<li><strong>[1]</strong> memblock — 早期启动内存</li>
+<li><strong>[2]</strong> Zone 与 NUMA 节点</li>
+<li><strong>[3]</strong> 伙伴分配器</li>
+<li><strong>[4]</strong> SLUB 与 kmalloc</li>
+<li><strong>[5]</strong> vmalloc</li>
+<li><strong>[6]</strong> 虚拟内存区域（VMA）</li>
+<li><strong>[7]</strong> 页表与地址翻译</li>
+<li><strong>[8]</strong> 缺页中断与写时复制（COW）</li>
+<li><strong>[9]</strong> 内存回收、kswapd 与 LRU</li>
+</ul>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="http://localhost:1313/zh/tags/linux/">Linux</a></li>
+      <li><a href="http://localhost:1313/zh/tags/linux-subsystem-mm/">Linux-Subsystem-Mm</a></li>
+    </ul>
+<nav class="paginav">
+  <a class="next" href="http://localhost:1313/zh/posts/hello-world/">
+    <span class="title">下一页 »</span>
+    <span>你好世界</span>
+  </a>
+</nav>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2026 <a href="http://localhost:1313/zh/">Troy&#39;s Blog</a></span> · 
+
+    <span>
+        Powered by
+        <a href="https://gohugo.io/" rel="noopener noreferrer" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" id="top-link" class="top-link hidden" aria-label="go to top" title="Go to Top (Alt + G)" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevrons-up">
+        <polyline points="17 11 12 6 7 11"></polyline>
+        <polyline points="17 18 12 13 7 18"></polyline>
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu');
+    if (menu) {
+        
+        const scrollPosition = localStorage.getItem("menu-scroll-position");
+        if (scrollPosition) {
+            menu.scrollLeft = parseInt(scrollPosition, 10);
+        }
+        
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var toplink = document.getElementById("top-link");
+    window.onscroll = function () {
+        const scrollThreshold = window.innerHeight;
+        if (document.body.scrollTop > scrollThreshold || document.documentElement.scrollTop > scrollThreshold) {
+            toplink.classList.remove("hidden");
+        } else {
+            toplink.classList.add("hidden");
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        const html = document.querySelector("html");
+        if (html.dataset.theme === "dark") {
+            html.dataset.theme = 'light';
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            html.dataset.theme = 'dark';
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = '复制';
+
+        function copyingDone() {
+            copybutton.innerHTML = '已复制！';
+            setTimeout(() => {
+                copybutton.innerHTML = '复制';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

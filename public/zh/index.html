@@ -151,6 +151,26 @@
 
 <article class="post-entry"> 
   <header class="entry-header">
+    <h2 class="entry-hint-parent">linux-mm[0]: 物理内存与 struct page
+    </h2>
+  </header>
+  <div class="entry-content">
+    <p>物理内存是什么 学习 Linux 内核内存管理，第一个问题看起来很简单：从内核的角度来看，物理内存到底是什么？
+你的内存条是一大片连续的字节。内核不会把它当成一整块来用——它把内存切成固定大小的块，每一块叫做一个页（page）。在 x86_64 上，默认页大小是 4KB，一台 8GB 内存的机器大约有 200 万个页。
+4KB 是谁定的？为什么是 4KB？ 这是硬件决定的，不是内核决定的。每颗现代 CPU 里都有一个专门负责虚拟地址到物理地址翻译的硬件单元，叫做 MMU（内存管理单元）。MMU 在芯片设计阶段就固定了它支持的页大小，内核只能用 MMU 支持的那几种，没有别的选择。
+x86_64 的 MMU 支持三种页大小：
+大小 名称 典型用途 4KB 普通页 通用 2MB 大页（Huge Page） 数据库、大内存映射 1GB 巨页（Gigantic Page） 特殊高性能场景 4KB 成为默认值是因为它在两个极端之间取得了平衡：足够小，不会在稀疏分配时浪费太多内存；足够大，不会让页表变得过于庞大。内核可以通过 THP（透明大页） 或显式的 mmap 标志使用 2MB 或 1GB 的大页，但 4KB 是一切的基础。
+struct page — 每个页的&#34;档案卡&#34; 内核需要追踪每一个页的状态：它在被使用吗？被谁用？能不能被回收？有没有被写脏？
+这些信息存在 struct page 里，定义在 include/linux/mm_types.h。可以把它想象成停车场里每个停车位上贴的一张档案卡——停车场是你的内存，每个停车位是一个页，档案卡记录了谁停在这里、现在是什么状态。
+struct page { memdesc_flags_t flags; /* 状态标志位 — 脏页、锁定、回写中等 */ union { struct list_head lru; /* LRU 链表指针，用于内存回收 */ ... }; atomic_t _mapcount; /* 有多少个页表项映射了这个页 */ atomic_t _refcount; /* 引用计数 — 降到 0 时页才能被释放 */ ... }; 逐个字段来看。
+...</p>
+  </div>
+  <footer class="entry-footer"><span title='2026-04-23 18:15:51 +0800 CST'>2026年4月23日</span>&nbsp;·&nbsp;<span>2 分钟</span></footer>
+  <a class="entry-link" aria-label="post link to linux-mm[0]: 物理内存与 struct page" href="http://localhost:1313/zh/posts/linux-mm-0-physical-memory-and-struct-page/"></a>
+</article>
+
+<article class="post-entry"> 
+  <header class="entry-header">
     <h2 class="entry-hint-parent">你好世界
     </h2>
   </header>
