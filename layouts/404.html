@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kernel Panic</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0a;
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .kernel-panic {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+            color: #cccccc;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .white { color: #ffffff; }
+        .red { color: #ff6b6b; }
+        .yellow { color: #ffd93d; }
+        .gray { color: #888888; }
+        .green { color: #6bcb77; }
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #cccccc;
+            animation: blink 1s step-end infinite;
+            vertical-align: text-bottom;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+        a { color: #6bcb77; text-decoration: underline; }
+        a:hover { color: #ffd93d; }
+    </style>
+</head>
+<body>
+<div class="kernel-panic" id="panic-output"></div>
+<script>
+const lines = [
+    { text: "[    0.000000] Linux version 6.12.0-troy (troy@blog) (gcc 13.2.0)", cls: "gray" },
+    { text: "[    0.000000] Command line: BOOT_IMAGE=/vmlinuz root=/dev/sda1", cls: "gray" },
+    { text: "[    0.000000] Memory: 404k/404k available (this is fine)", cls: "gray" },
+    { text: "[    0.000000] CPU: 1 PID: 1 Comm: blog Not tainted 6.12.0-troy", cls: "gray" },
+    { text: "", cls: "" },
+    { text: "BUG: unable to handle page fault at virtual address 0x00000404", cls: "red" },
+    { text: "Oops: 0002 [#1] PREEMPT SMP", cls: "red" },
+    { text: "CPU: 0 PID: 404 Comm: httpd Tainted: P           O", cls: "white" },
+    { text: "Hardware name: Troy's Blog Server/PaperMod, BIOS 2026.04 04/23/2026", cls: "white" },
+    { text: "RIP: 0010:find_page+0x404/0x1000 [blog]", cls: "white" },
+    { text: "Code: 48 8b 45 f0 48 83 c0 04 04 48 89 45 f0 eb e2 ...", cls: "gray" },
+    { text: "RSP: 0018:ffffc900001bfd50 EFLAGS: 00010246", cls: "gray" },
+    { text: "RAX: 0000000000000000 RBX: 0000000000000404 RCX: 0000000000000000", cls: "gray" },
+    { text: "RDX: 0000000000000000 RSI: ffff888003c4e000 RDI: 0000000000000404", cls: "gray" },
+    { text: "Call Trace:", cls: "yellow" },
+    { text: " <TASK>", cls: "yellow" },
+    { text: " ? show_regs+0x6c/0x80", cls: "white" },
+    { text: " ? __die+0x24/0x70", cls: "white" },
+    { text: " ? page_fault_oops+0x154/0x440", cls: "white" },
+    { text: " ? resolve_url+0x42/0x100 [blog]", cls: "white" },
+    { text: " ? route_request+0x88/0x200 [blog]", cls: "white" },
+    { text: " ? serve_page+0x404/0x1000 [blog]", cls: "white" },
+    { text: " </TASK>", cls: "yellow" },
+    { text: "", cls: "" },
+    { text: "---[ end trace 0000000000000404 ]---", cls: "red" },
+    { text: "", cls: "" },
+    { text: "Kernel panic - not synced: Fatal exception", cls: "red" },
+    { text: "", cls: "" },
+    { text: "", cls: "green" },
+    { text: "", cls: "green" },
+    { text: "", cls: "" },
+];
+
+const isZh = window.location.pathname.startsWith('/zh/');
+
+if (isZh) {
+    lines[lines.length - 3] = { text: "/* 别紧张，只是个 404。你要找的页面不存在。 */", cls: "green" };
+    lines[lines.length - 2] = { text: "/* 至少这不是一个真正的 kernel panic。 */", cls: "green" };
+} else {
+    lines[lines.length - 3] = { text: "/* Relax, it's just a 404. The page you're looking for doesn't exist. */", cls: "green" };
+    lines[lines.length - 2] = { text: "/* But at least it's not a real kernel panic. */", cls: "green" };
+}
+
+const homeUrl = isZh ? '/zh/' : '/';
+const homeLinkText = isZh ? '回到首页' : 'Go back home';
+const homeText = '> reboot -f  # ';
+
+const container = document.getElementById('panic-output');
+let i = 0;
+const delay = 20;
+
+function typeLine() {
+    if (i < lines.length) {
+        const span = document.createElement('span');
+        span.className = lines[i].cls;
+        span.textContent = lines[i].text + '\n';
+        container.appendChild(span);
+        i++;
+        setTimeout(typeLine, delay);
+    } else {
+        const last = document.createElement('span');
+        last.className = 'green';
+        last.textContent = homeText;
+        const link = document.createElement('a');
+        link.href = homeUrl;
+        link.textContent = homeLinkText;
+        last.appendChild(link);
+        last.appendChild(document.createTextNode('\n'));
+        container.appendChild(last);
+
+        const cursor = document.createElement('span');
+        cursor.className = 'cursor';
+        container.appendChild(cursor);
+    }
+}
+
+typeLine();
+</script>
+</body>
+</html>
