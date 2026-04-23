@@ -83,3 +83,10 @@ defaultContentLanguageInSubdir = false
 
 [outputs]
   home = ["HTML", "RSS", "JSON"]
+
+[markup.highlight]
+  style = "dracula"
+  lineNos = true
+  lineNumbersInTable = true
+  noClasses = true
+  tabWidth = 8
