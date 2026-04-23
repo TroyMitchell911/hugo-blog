@@ -2,19 +2,19 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>Troy&#39;s Blog</title>
-    <link>https://troymitchell911.github.io/</link>
+    <link>http://localhost:1313/</link>
     <description>Recent content on Troy&#39;s Blog</description>
     <generator>Hugo</generator>
     <language>en</language>
     <lastBuildDate>Thu, 23 Apr 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="https://troymitchell911.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://localhost:1313/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Hello World</title>
-      <link>https://troymitchell911.github.io/posts/hello-world/</link>
+      <link>http://localhost:1313/posts/hello-world/</link>
       <pubDate>Thu, 23 Apr 2026 00:00:00 +0000</pubDate>
-      <guid>https://troymitchell911.github.io/posts/hello-world/</guid>
-      <description>&lt;p&gt;这是我的第一篇 Hugo 博客文章。&lt;/p&gt;
-&lt;p&gt;从 Hexo + Butterfly 迁移到 Hugo + PaperMod，追求简洁高效。&lt;/p&gt;</description>
+      <guid>http://localhost:1313/posts/hello-world/</guid>
+      <description>&lt;p&gt;This is my first Hugo blog post.&lt;/p&gt;
+&lt;p&gt;Migrated from Hexo + Butterfly to Hugo + PaperMod, pursuing simplicity and efficiency.&lt;/p&gt;</description>
     </item>
   </channel>
 </rss>

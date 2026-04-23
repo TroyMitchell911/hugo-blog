@@ -5,6 +5,6 @@ draft: false
 tags: ["blog"]
 ---
 
-这是我的第一篇 Hugo 博客文章。
+This is my first Hugo blog post.
 
-从 Hexo + Butterfly 迁移到 Hugo + PaperMod，追求简洁高效。
+Migrated from Hexo + Butterfly to Hugo + PaperMod, pursuing simplicity and efficiency.
