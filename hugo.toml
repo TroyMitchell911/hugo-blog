@@ -25,6 +25,9 @@ defaultContentLanguageInSubdir = false
       name = "github"
       url = "https://github.com/TroyMitchell911"
     [[languages.en.params.socialIcons]]
+      name = "email"
+      url = "mailto:i@troy-y.org"
+    [[languages.en.params.socialIcons]]
       name = "rss"
       url = "/index.xml"
     [[languages.en.menu.main]]
@@ -62,6 +65,9 @@ defaultContentLanguageInSubdir = false
     [[languages.zh.params.socialIcons]]
       name = "github"
       url = "https://github.com/TroyMitchell911"
+    [[languages.zh.params.socialIcons]]
+      name = "email"
+      url = "mailto:i@troy-y.org"
     [[languages.zh.params.socialIcons]]
       name = "rss"
       url = "/zh/index.xml"
