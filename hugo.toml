@@ -10,6 +10,7 @@ defaultContentLanguageInSubdir = false
     languageName = "English"
     weight = 1
     [languages.en.params]
+      comments = true
       defaultTheme = "auto"
       ShowReadingTime = true
       ShowShareButtons = false
@@ -44,6 +45,7 @@ defaultContentLanguageInSubdir = false
     weight = 2
     languageCode = "zh-CN"
     [languages.zh.params]
+      comments = true
       defaultTheme = "auto"
       ShowReadingTime = true
       ShowShareButtons = false
