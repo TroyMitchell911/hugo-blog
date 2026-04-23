@@ -20,7 +20,7 @@ defaultContentLanguageInSubdir = false
       ShowToc = true
     [languages.en.params.homeInfoParams]
       Title = "Hey there 👋"
-      Content = "Welcome to my blog"
+      Content = "I'm [Troy Mitchell](https://troy-y.org). Welcome to my blog."
     [[languages.en.params.socialIcons]]
       name = "github"
       url = "https://github.com/TroyMitchell911"
@@ -58,7 +58,7 @@ defaultContentLanguageInSubdir = false
       ShowToc = true
     [languages.zh.params.homeInfoParams]
       Title = "你好 👋"
-      Content = "欢迎来到我的博客"
+      Content = "我是 [Troy Mitchell](https://troy-y.org)。欢迎来到我的博客。"
     [[languages.zh.params.socialIcons]]
       name = "github"
       url = "https://github.com/TroyMitchell911"
