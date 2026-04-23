@@ -3,6 +3,7 @@ date = '2026-04-23T18:15:51+08:00'
 draft = false
 title = 'linux-mm[0]: 物理内存与 struct page'
 tags = ["linux", "linux-subsystem-mm"]
+summary = 'Linux 内核如何将 RAM 划分为页，通过 struct page 跟踪每页元数据，并通过引用计数和脏页回写机制管理页的生命周期。'
 +++
 
 ## 物理内存是什么

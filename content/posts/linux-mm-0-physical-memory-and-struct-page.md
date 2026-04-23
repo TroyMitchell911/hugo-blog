@@ -3,6 +3,7 @@ date = '2026-04-23T18:15:51+08:00'
 draft = false
 title = 'linux-mm[0]: Physical Memory and struct page'
 tags = ["linux", "linux-subsystem-mm"]
+summary = 'How the Linux kernel slices RAM into pages, tracks per-page metadata via struct page, and manages page lifetime through reference counting and dirty writeback.'
 +++
 
 ## What Is Physical Memory?
