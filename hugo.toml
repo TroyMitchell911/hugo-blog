@@ -5,6 +5,11 @@ paginate = 20
 defaultContentLanguage = "en"
 defaultContentLanguageInSubdir = false
 
+[params]
+  description = "Troy Mitchell's blog on Linux kernel, embedded systems, RISC-V, and open-source development."
+  keywords = ["Linux kernel", "embedded systems", "RISC-V", "operating systems", "open-source", "HPC"]
+  author = "Troy Mitchell"
+
 [languages]
   [languages.en]
     languageName = "English"
