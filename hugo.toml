@@ -25,7 +25,7 @@ defaultContentLanguageInSubdir = false
       ShowToc = true
     [languages.en.params.homeInfoParams]
       Title = "Hey there 👋"
-      Content = "I'm [Troy Mitchell](https://troy-y.org). Welcome to my blog."
+      Content = "I'm [Troy Mitchell](https://troy-y.org). Welcome to my blog.\n\n`GPG: 3FE5 535C F1B0 E658 E57D B59B AE1C 2FBE A7DB 42E1`"
     [[languages.en.params.socialIcons]]
       name = "github"
       url = "https://github.com/TroyMitchell911"
@@ -66,7 +66,7 @@ defaultContentLanguageInSubdir = false
       ShowToc = true
     [languages.zh.params.homeInfoParams]
       Title = "你好 👋"
-      Content = "我是 [Troy Mitchell](https://troy-y.org)。欢迎来到我的博客。"
+      Content = "我是 [Troy Mitchell](https://troy-y.org)。欢迎来到我的博客。\n\n`GPG: 3FE5 535C F1B0 E658 E57D B59B AE1C 2FBE A7DB 42E1`"
     [[languages.zh.params.socialIcons]]
       name = "github"
       url = "https://github.com/TroyMitchell911"
