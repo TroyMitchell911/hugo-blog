@@ -74,8 +74,8 @@ The `planoai` command will be available whenever that venv is active. You can al
 # Download the release tarball
 wget https://github.com/TroyMitchell911/plano/releases/download/v0.4.20-retry-failover/plano-v0.4.20-retry-failover-linux-x86_64.tar.gz
 
-# Extract to ~/.plano — the tarball includes version files that prevent
-# the CLI from re-downloading official binaries over our patched ones
+# Extract to ~/.plano — this overwrites any existing binaries and WASM plugins
+mkdir -p ~/.plano
 tar xzf plano-v0.4.20-retry-failover-linux-x86_64.tar.gz -C ~/.plano
 
 # Verify checksums
@@ -86,22 +86,25 @@ The tarball contains:
 
 ```
 bin/
-  brightstaff          # patched control plane binary
+  brightstaff          # patched control plane binary (built from source)
   envoy                # Envoy v1.37.0 data plane
 plugins/
-  llm_gateway.wasm     # patched LLM gateway WASM filter
-  prompt_gateway.wasm  # prompt gateway WASM filter
-patches/
-  config_generator.py  # patched CLI config generator (backup)
+  llm_gateway.wasm     # patched LLM gateway WASM filter (built from source)
+  prompt_gateway.wasm  # patched prompt gateway WASM filter (built from source)
 checksums.sha256
 ```
 
-The `patches/config_generator.py` is a backup — if you installed the CLI from the fork, you don't need it. It's there in case you need to manually patch an existing PyPI installation:
-
-```bash
-cp ~/.plano/patches/config_generator.py \
-   "$(python3 -c 'import planoai; print(planoai.__path__[0])')/config_generator.py"
-```
+> **Important:** Both WASM filters (`llm_gateway.wasm` and `prompt_gateway.wasm`) must be the locally-built versions from this release. The retry and failover routing logic lives inside the WASM filters — if `planoai` downloads official WASM binaries instead of using the ones in `~/.plano/plugins/`, retry and failover will silently not work. The patched CLI detects these files in `~/.plano/plugins/` and uses them instead of downloading from upstream.
+>
+> After running `planoai up`, check the startup output. You should see either:
+> ```
+> Using locally-built WASM plugins
+> ```
+> or (if running outside the source repo):
+> ```
+> WASM plugins 0.4.20 (cached)
+> ```
+> If you see `Downloading WASM plugins` instead, the patched WASM is not being picked up — make sure the tarball was extracted to `~/.plano/` correctly and both `.wasm` files exist under `~/.plano/plugins/`.
 
 ### Windows / macOS (Docker mode)
 
